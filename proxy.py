@@ -9,7 +9,13 @@ def receive_webinfo(webaddress, request):
         sock.sendall(request)
         data = sock.recv(1024)
 
-        #parce content length
+        #finds content length
+        start = s.find('Content-Length:')
+        start += 16
+        end = start
+        while (s[end]).isdigit():
+            end += 1
+        content_length = s[start:end]
 
         #get rest of the data
         # webpage = b''
