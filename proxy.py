@@ -25,6 +25,9 @@ while True:
             else:
                 # print('no data from', client_address)
                 break
+        
+        client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 
     finally:
         #close connecton
