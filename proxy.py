@@ -1,18 +1,18 @@
 import sys, os, time, socket, select
 
 # creates socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+serv_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # links socket to port
 server_address = ('localhost', 8888)
-sock.bind(server_address)
+serv_sock.bind(server_address)
 
 # listen for connections
-sock.listen(1)
+serv_sock.listen(1)
 
 while True:
     # wait for connection
-    connection, client_address = sock.accept()
+    connection, client_address = sevr_sock.accept()
 
     try:
         # Receive the data in small chunks and retransmit it
@@ -25,6 +25,9 @@ while True:
             else:
                 # print('no data from', client_address)
                 break
+        
+        client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 
             
 
