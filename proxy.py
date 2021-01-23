@@ -26,6 +26,8 @@ while True:
                 # print('no data from', client_address)
                 break
 
+            
+
     finally:
         #close connecton
         connection.close()
