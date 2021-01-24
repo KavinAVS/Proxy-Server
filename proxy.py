@@ -9,7 +9,7 @@ def get_header_val(name, header):
 def receive_webinfo(webaddress, request):
     webpage = b""
     try:
-        webaddress = "www.cs.toronto.edu/~ylzhang/"
+        webaddress = "www.example.org/"
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_address = (webaddress, 80)
         sock.connect(server_address)
@@ -55,9 +55,11 @@ if __name__ == "__main__":
             request = b''
             while True:
                 data = connection.recv(1024)
-                #print('{!r}'.format(data))
+                # print('{!r}'.format(data))
                 if data:
                     request += data
+                    if request[-4::] == "\r\n\r\n":
+                        break
                 else:
                     #print('no data from', client_address)
                     break
