@@ -19,22 +19,35 @@ def receive_webinfo(webaddress, request):
         sock.sendall(request)
 
         data = sock.recv(1024)
-        num = get_header_val(b"Content-Length", data)
-        if num == -1:
-            sock.close()
-            return data
+        encoding = get_header_val(b"Transfer-Encoding", data)
 
-        content_len = int(num)
-
-        content_index = data.find(b"\r\n\r\n") + 4
-        curr_len = len(data[content_index:])
-        webpage += data
-        while curr_len < content_len:
-            data = sock.recv(1024)
+        if encoding == b"chunked":  # handle chunked transfer encoding
             webpage += data
-            curr_len += len(data)
+            while True:
+                data = sock.recv(1024)
+                if data:
+                    webpage += data
+                    if webpage[-4::] == b"\r\n\r\n":
+                        break
+                else:
+                    break
 
-    except Exception:
+        else:  # handle other transfer encoding that have content length on them
+            num = get_header_val(b"Content-Length", data)
+            if num == -1:
+                sock.close()
+                return data
+
+            content_len = int(num)
+            content_index = data.find(b"\r\n\r\n") + 4
+            curr_len = len(data[content_index:])
+            webpage += data
+            while curr_len < content_len:
+                data = sock.recv(1024)
+                webpage += data
+                curr_len += len(data)
+
+    except socket.error:
         print("Unable to connect to web server")
         sock.close()
 
@@ -76,10 +89,11 @@ def handle_request(sock):
         request = request[:start_index] + b"Host: " + host + b" \r\n"\
                   + request[start_index:].split(b"\r\n", 1)[1]
 
-    #print(b"REQUEST: \n" + request)
-
+    # print(b"REQUEST: \n" + request)
+    print(temp[1])
     webpage = receive_webinfo(host, request)
-    #print(b"RESPONSE: \n" + webpage)
+
+    # print(b"RESPONSE: \n" + webpage)
     sock.sendall(webpage)
 
 
