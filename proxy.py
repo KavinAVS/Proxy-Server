@@ -9,10 +9,8 @@ def get_header_val(name, header):
 def receive_webinfo(webaddress, request):
     webpage = b""
     try:
-        print("here")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_address = (webaddress, 80)
-        print("here")
         sock.connect(server_address)
         sock.sendall(request)
 
@@ -30,7 +28,7 @@ def receive_webinfo(webaddress, request):
     except socket.error:
         print("Unable to connect to web server")
         sock.close()
-        #sys.exit(1)
+
 
     else:
         sock.close()
@@ -65,15 +63,14 @@ if __name__ == "__main__":
                     #print('no data from', client_address)
                     break
 
-            #print("here")
-            #start_index = request.find(b"Host:")
-            #request = request[:start_index] + request[start_index:].split(b"\r\n", 1)[1]
-            print(request)
+            start_index = request.find(b"Host:")
+            request = request[:start_index] + request[start_index:].split(b"\r\n", 1)[1]
 
-            web_address = request.split(b" ", 2)[1].strip(b"/")
-            print(web_address)
+            temp = request.split(b" ", 2)
+            web_address = temp[1].strip(b"/")
+            request = temp[0] + b" http://" + web_address + b" " + temp[2]
+
             webpage = receive_webinfo(web_address, request)
-            print(webpage)
             connection.sendall(webpage)
 
 
