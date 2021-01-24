@@ -9,9 +9,10 @@ def get_header_val(name, header):
 def receive_webinfo(webaddress, request):
     webpage = b""
     try:
-        webaddress = "www.example.org/"
+        print("here")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_address = (webaddress, 80)
+        print("here")
         sock.connect(server_address)
         sock.sendall(request)
 
@@ -52,21 +53,21 @@ if __name__ == "__main__":
 
         try:
             # Receive the data in small chunks and retransmit it
-            request = b''
+            request = b""
             while True:
                 data = connection.recv(1024)
-                # print('{!r}'.format(data))
+                #print('{!r}'.format(data))
                 if data:
                     request += data
-                    if request[-4::] == "\r\n\r\n":
+                    if request[-4::] == b"\r\n\r\n":
                         break
                 else:
                     #print('no data from', client_address)
                     break
 
-            print("here")
-            start_index = request.find(b"Host:")
-            request = request[:start_index] + request[start_index:].split(b"\r\n", 1)[1]
+            #print("here")
+            #start_index = request.find(b"Host:")
+            #request = request[:start_index] + request[start_index:].split(b"\r\n", 1)[1]
             print(request)
 
             web_address = request.split(b" ", 2)[1].strip(b"/")
