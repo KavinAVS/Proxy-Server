@@ -80,23 +80,33 @@ def handle_request(sock):
     #print(b"REQUEST: \n" + request)
 
     #gets URL for saving cache files and replaces backslashes with space
-    url = temp[1][1::]
-    url = url.decode("utf-8")
-    url = url.replace("/", " ")
+    filename = temp[1][1::]
+    filename = filename.decode("utf-8")
+    filename = filename.replace("/", " ")
 
     #try to open cached file
     try:
-        f = open(url, 'rb')
+        #compares the files age with the maximum allowed cache age
+        m_seconds = os.path.getmtime(".\\"+ filename)
+        curr_age =  time.time() - m_seconds
+        allowed_age = sys.argv[1]
+
+        #removes expired caches
+        if age > allowed_age:
+            print("File too old, removing")
+            os.remove(filename)
+            
+        f = open(filename, 'rb')
         webpage = f.read()
         print("got from cache")
 
     #get data if no cached file
-    except FileNotFoundError:
+    except Exception:
         #gets webpage data
         webpage = receive_webinfo(host, request)
 
         #saves webage data in a file with spaces instead of backslashes
-        f = open(url, 'wb')
+        f = open(filename, 'wb')
         f.write(webpage)
 
     #print(b"RESPONSE: \n" + webpage)
