@@ -60,16 +60,26 @@ def handle_request(sock):
     if request == b'':
         return
 
-    start_index = request.find(b"Host:")
-    if start_index != -1:
-        request = request[:start_index] + request[start_index:].split(b"\r\n", 1)[1]
-
     # get web address and add http:// to the header's address
     temp = request.split(b" ", 2)
-    web_address = temp[1].split(b"/")[1]  #get address ([0] is empty since it starts with /)
-    request = temp[0] + b" http://" + temp[1].strip(b"/") + b" " + temp[2]
+    address_parts = temp[1].split(b"/", 2)
+    host = address_parts[1]  # since address starts with / [1] is the domain
 
-    webpage = receive_webinfo(web_address, request)
+    if len(address_parts) < 3:
+        # if the address is "/www.example.com" then this only has 2 parts
+        request = temp[0] + b" / " + temp[2]
+    else:
+        request = temp[0] + b" /" + address_parts[2] + b" " + temp[2]
+
+    start_index = request.find(b"Host:")
+    if start_index != -1:
+        request = request[:start_index] + b"Host: " + host + b" \r\n"\
+                  + request[start_index:].split(b"\r\n", 1)[1]
+
+    #print(b"REQUEST: \n" + request)
+
+    webpage = receive_webinfo(host, request)
+    #print(b"RESPONSE: \n" + webpage)
     sock.sendall(webpage)
 
 
