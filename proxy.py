@@ -1,44 +1,50 @@
 import sys, os, time, socket, select
 
+def get_header_val(name, header):
+    index = header.find(name)
+    index += len(name)+1
+    num = header[index:].split(b"\r\n", 1)
+    return num[0].strip()
+
 def receive_webinfo(webaddress, request):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_address = (webaddress, 80)
-    sock.connect(server_address)
-    print("here1")
+    webpage = b""
     try:
+        webaddress = "www.cs.toronto.edu/~ylzhang/"
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_address = (webaddress, 80)
+        sock.connect(server_address)
         sock.sendall(request)
+
         data = sock.recv(1024)
+        content_len = int(get_header_val(b"Content-Length", data))
 
-        #parce content length
+        content_index = data.find(b"\r\n\r\n") + 4
+        curr_len = len(data[content_index:])
+        webpage += data
+        while curr_len < content_len:
+            data = sock.recv(1024)
+            webpage += data
+            curr_len += len(data)
 
-        #get rest of the data
-        # webpage = b''
-        # while True:
-        #     data = sock.recv(1024)
-        #     print('{!r}'.format(data))
-        #     if data:
-        #         webpage += data
-        #     else:
-        #         print('no data from', client_address)
-        #         break
-        print("here2")
-    finally:
+    except socket.error:
+        print("Unable to connect to web server")
         sock.close()
+        #sys.exit(1)
 
-    print("here")
+    else:
+        sock.close()
 
     return webpage
 
 if __name__ == "__main__":
     # creates socket
-    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    # links socket to port
-    server_address = ('localhost', 8888)
-    server_sock.bind(server_address)
-
-    # listen for connections
-    server_sock.listen(1)
+    try:
+        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_address = ('localhost', 8888)
+        server_sock.bind(server_address)
+        server_sock.listen(1)
+    except Exception:
+        sys.exit(1)
 
     while True:
         # wait for connection
@@ -53,13 +59,19 @@ if __name__ == "__main__":
                 if data:
                     request += data
                 else:
-                    # print('no data from', client_address)
+                    #print('no data from', client_address)
                     break
 
+            print("here")
+            start_index = request.find(b"Host:")
+            request = request[:start_index] + request[start_index:].split(b"\r\n", 1)[1]
+            print(request)
+
             web_address = request.split(b" ", 2)[1].strip(b"/")
+            print(web_address)
             webpage = receive_webinfo(web_address, request)
             print(webpage)
-            #connection.sendall(webpage)
+            connection.sendall(webpage)
 
 
         finally:
