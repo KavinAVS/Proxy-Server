@@ -65,6 +65,7 @@ def handle_request(sock):
     address_parts = temp[1].split(b"/", 2)
     host = address_parts[1]  # since address starts with / [1] is the domain
 
+
     if len(address_parts) < 3:
         # if the address is "/www.example.com" then this only has 2 parts
         request = temp[0] + b" / " + temp[2]
@@ -78,7 +79,26 @@ def handle_request(sock):
 
     #print(b"REQUEST: \n" + request)
 
-    webpage = receive_webinfo(host, request)
+    #gets URL for saving cache files and replaces backslashes with space
+    url = temp[1][1::]
+    url = url.decode("utf-8")
+    url = url.replace("/", " ")
+
+    #try to open cached file
+    try:
+        f = open(url, 'rb')
+        webpage = f.read()
+        print("got from cache")
+
+    #get data if no cached file
+    except FileNotFoundError:
+        #gets webpage data
+        webpage = receive_webinfo(host, request)
+
+        #saves webage data in a file with spaces instead of backslashes
+        f = open(url, 'wb')
+        f.write(webpage)
+
     #print(b"RESPONSE: \n" + webpage)
     sock.sendall(webpage)
 
