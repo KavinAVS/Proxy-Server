@@ -89,11 +89,39 @@ def handle_request(sock):
         request = request[:start_index] + b"Host: " + host + b" \r\n"\
                   + request[start_index:].split(b"\r\n", 1)[1]
 
-    # print(b"REQUEST: \n" + request)
-    print(temp[1])
-    webpage = receive_webinfo(host, request)
+    #print(b"REQUEST: \n" + request)
 
-    # print(b"RESPONSE: \n" + webpage)
+    #gets URL for saving cache files and replaces backslashes with space
+    filename = temp[1][1::]
+    filename = filename.decode("utf-8")
+    filename = filename.replace("/", " ")
+
+    #try to open cached file
+    try:
+        #compares the files age with the maximum allowed cache age
+        m_seconds = os.path.getmtime(".\\"+ filename)
+        curr_age =  time.time() - m_seconds
+        allowed_age = sys.argv[1]
+
+        #removes expired caches
+        if age > allowed_age:
+            print("File too old, removing")
+            os.remove(filename)
+
+        f = open(filename, 'rb')
+        webpage = f.read()
+        print("got from cache")
+
+    #get data if no cached file
+    except Exception:
+        #gets webpage data
+        webpage = receive_webinfo(host, request)
+
+        #saves webage data in a file with spaces instead of backslashes
+        f = open(filename, 'wb')
+        f.write(webpage)
+
+    #print(b"RESPONSE: \n" + webpage)
     sock.sendall(webpage)
 
 
