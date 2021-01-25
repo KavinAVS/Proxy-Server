@@ -98,8 +98,14 @@ def retrieve_webpage(host, path, request):
 
         # removes expired caches
         if curr_age > allowed_age:
-            print("File too old, removing")
+            print("Updating cache files")
             os.remove(filepath)
+
+            webpage = contact_webserver(host, request)
+            # saves webpage data in a file
+            f = open(filepath, 'wb')
+            f.write(webpage)
+
         else:
             f = open(filepath, 'rb')
             webpage = f.read()
