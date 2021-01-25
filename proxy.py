@@ -99,15 +99,21 @@ def handle_request(sock):
     #try to open cached file
     try:
         #compares the files age with the maximum allowed cache age
+        print("into try")
         m_seconds = os.path.getmtime(".\\"+ filename)
+        print("m_seconds:")
+        print(m_seconds)
         curr_age =  time.time() - m_seconds
-        allowed_age = sys.argv[1]
+        allowed_age = int(sys.argv[1])
+        print("age allowed:")
+        print(allowed_age)
 
         #removes expired caches
-        if age > allowed_age:
+        if curr_age > allowed_age:
             print("File too old, removing")
             os.remove(filename)
 
+        print("got pre file")
         f = open(filename, 'rb')
         webpage = f.read()
         print("got from cache")
