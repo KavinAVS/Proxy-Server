@@ -1,6 +1,14 @@
 import sys, os, time, socket, select
 
 
+def add_cache_box(webpage):
+    """
+    Adds a notification box in html recieved from the webpage indicating
+    if the webpage is fresh or cached.
+    """
+    index = webpage.find("<body>")
+
+
 def get_header_val(name, header):
     """
     parses HTML headers for the value of given header name
@@ -133,7 +141,7 @@ def handle_request(sock):
     request = b""
     while True:
         data = sock.recv(1024)
-        # print('{!r}'.format(data))
+        print('{!r}'.format(data))
         if data:
             request += data
             if request[-4::] == b"\r\n\r\n":
@@ -167,6 +175,8 @@ def handle_request(sock):
 
     # get webpage and send it to client
     webpage = retrieve_webpage(host, path, request)
+    print("WEBPAGE:")
+    print(webpage)
     sock.sendall(webpage)
 
 
