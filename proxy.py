@@ -173,6 +173,12 @@ def handle_request(sock):
         request = request[:start_index] + b"Host: " + host + b" \r\n"\
                   + request[start_index:].split(b"\r\n", 1)[1]
 
+    # change the Accept-Encoding header value so the web server returns ascii
+    start_index = request.find(b"Accept-Encoding:")
+    if start_index != -1:
+        request = request[:start_index] + b"Accept-Encoding: " + b"identity\r\n"\
+                  + request[start_index:].split(b"\r\n", 1)[1]
+
     # get webpage and send it to client
     webpage = retrieve_webpage(host, path, request)
     print("WEBPAGE:")
