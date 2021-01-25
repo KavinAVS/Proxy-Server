@@ -201,7 +201,7 @@ if __name__ == "__main__":
 
         while inputs:
             readable, writable, exceptional = select.select(inputs, outputs,
-                                                            inputs)
+                                                            inputs, 20)
 
             for s in readable:
                 if s is server_sock:
