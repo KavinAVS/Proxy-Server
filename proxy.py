@@ -100,10 +100,10 @@ def retrieve_webpage(host, path, request):
         if curr_age > allowed_age:
             print("File too old, removing")
             os.remove(filepath)
-
-        f = open(filepath, 'rb')
-        webpage = f.read()
-        print("got from cache")
+        else:
+            f = open(filepath, 'rb')
+            webpage = f.read()
+            print("got from cache")
 
     # get data if not cached
     else:
