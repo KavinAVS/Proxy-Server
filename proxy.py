@@ -2,6 +2,12 @@ import sys, os, time, socket, select
 
 
 def get_header_val(name, header):
+    """
+    parses HTML headers for the value of given header name
+    :param name: name of the header
+    :param header: HTML header
+    :return: the value of the specified header
+    """
     index = header.find(name)
     if index == -1:
         return -1
@@ -10,7 +16,14 @@ def get_header_val(name, header):
     return num[0].strip()
 
 
-def receive_webinfo(webaddress, request):
+def contact_webserver(webaddress, request):
+    """
+    Creates a client to request data from given web address using the
+    request header
+    :param webaddress: The address of the web server
+    :param request: The request header to send to the web server
+    :return: the webpage/file sent by the web server
+    """
     webpage = b""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -57,7 +70,60 @@ def receive_webinfo(webaddress, request):
     return webpage
 
 
+def retrieve_webpage(host, path, request):
+    """
+    Grabs web page from cache or retrieves from web server if not cached
+
+    :param host: domain address of host
+    :param path: path to requesting file
+    :param request: request header from client
+    :return: webpage from the web server or cache
+    """
+    # gets URL for saving cache files and replaces backslashes with space
+    folder_name = "cache"
+    if not os.path.exists(folder_name):
+        os.mkdir(folder_name)
+
+    filename = host + b"$" + path.replace(b"/", b" ").strip()
+    filename = filename.decode("utf-8")
+
+    filepath = folder_name + "/" + filename
+
+    # try to open cached file
+    if os.path.exists(filepath):
+        # compares the files age with the maximum allowed cache age
+        m_seconds = os.path.getmtime(".\\" + filepath)
+        curr_age = time.time() - m_seconds
+        allowed_age = int(sys.argv[1])
+
+        # removes expired caches
+        if curr_age > allowed_age:
+            print("File too old, removing")
+            os.remove(filepath)
+
+        f = open(filepath, 'rb')
+        webpage = f.read()
+        print("got from cache")
+
+    # get data if not cached
+    else:
+        # gets data from host server
+        webpage = contact_webserver(host, request)
+
+        # saves webpage data in a file
+        f = open(filepath, 'wb')
+        f.write(webpage)
+    return webpage
+
+
 def handle_request(sock):
+    """
+    Receives request header from client then
+    receives webpage and send it back to client
+
+    :param sock: socket to requesting client
+    :return: None
+    """
     request = b""
     while True:
         data = sock.recv(1024)
@@ -73,61 +139,28 @@ def handle_request(sock):
     if request == b'':
         return
 
-    # get web address and add http:// to the header's address
+    # get web address
     temp = request.split(b" ", 2)
     address_parts = temp[1].split(b"/", 2)
     host = address_parts[1]  # since address starts with / [1] is the domain
 
+    # change GET path
+    path = b""
     if len(address_parts) < 3:
+        path = b" / "
         # if the address is "/www.example.com" then this only has 2 parts
-        request = temp[0] + b" / " + temp[2]
     else:
-        request = temp[0] + b" /" + address_parts[2] + b" " + temp[2]
+        path = b" /" + address_parts[2] + b" "
+    request = temp[0] + path + temp[2]
 
+    # change HOST header with domain address
     start_index = request.find(b"Host:")
     if start_index != -1:
         request = request[:start_index] + b"Host: " + host + b" \r\n"\
                   + request[start_index:].split(b"\r\n", 1)[1]
 
-    #print(b"REQUEST: \n" + request)
-
-    #gets URL for saving cache files and replaces backslashes with space
-    filename = temp[1][1::]
-    filename = filename.decode("utf-8")
-    filename = filename.replace("/", " ")
-
-    #try to open cached file
-    try:
-        #compares the files age with the maximum allowed cache age
-        print("into try")
-        m_seconds = os.path.getmtime(".\\"+ filename)
-        print("m_seconds:")
-        print(m_seconds)
-        curr_age =  time.time() - m_seconds
-        allowed_age = int(sys.argv[1])
-        print("age allowed:")
-        print(allowed_age)
-
-        #removes expired caches
-        if curr_age > allowed_age:
-            print("File too old, removing")
-            os.remove(filename)
-
-        print("got pre file")
-        f = open(filename, 'rb')
-        webpage = f.read()
-        print("got from cache")
-
-    #get data if no cached file
-    except Exception:
-        #gets webpage data
-        webpage = receive_webinfo(host, request)
-
-        #saves webage data in a file with spaces instead of backslashes
-        f = open(filename, 'wb')
-        f.write(webpage)
-
-    #print(b"RESPONSE: \n" + webpage)
+    # get webpage and send it to client
+    webpage = retrieve_webpage(host, path, request)
     sock.sendall(webpage)
 
 
