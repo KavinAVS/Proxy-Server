@@ -108,29 +108,40 @@ def retrieve_webpage(host, path, request):
 
         # removes expired caches
         if curr_age > allowed_age:
-            print("Updating cache files")
             os.remove(filepath)
-
             webpage = contact_webserver(host, request)
-            print("FUNCTION OUTPUT")
-            print (get_header_val(b"Content-Type", webpage))
-            if (get_header_val(b"Accept:", webpage) == b"text/html"):
-                print("WE GOT AN HTML FILE IN DA HOUSEEEEEEE\n")
-            
-            #index = webpage.find("<body>")
-
-
 
             # saves webpage data in a file
             f = open(filepath, 'wb')
             f.write(webpage)
             f.close()
 
+
+            content_type = get_header_val(b"Content-Type", webpage)
+
+            #adds cache box stating website is fresh
+            if (content_type != -1 and content_type.find(b"text/html") != -1):
+                index = webpage.find(b"<body>") + 7
+                text = "FRESH VERSION AT: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+                text = text.encode("utf-8")
+                s = b"<p style=\"z-index:9999; position:fixed; top:20px; left:20px; width:200px; height:100px; background-color:yellow; padding:10px; font-weight:bold;\">" + text + b"</p>" 
+                webpage = webpage[0:index] + s + webpage[index::]
+
+
         else:
+            #get cached website
             f = open(filepath, 'rb')
             webpage = f.read()
-            print("got from cache")
             f.close()
+            
+            content_type = get_header_val(b"Content-Type", webpage)
+            if (content_type != -1 and content_type.find(b"text/html") != -1):
+                index = webpage.find(b"<body>") + 7
+                text = "CACHED VERSION AS OF: " + time.strftime('%Y-%m-%d %H:%M:%S', os.path.getmtime(".\\" + filepath))
+                text = text.encode("utf-8")
+                s = b"<p style=\"z-index:9999; position:fixed; top:20px; left:20px; width:200px; height:100px; background-color:yellow; padding:10px; font-weight:bold;\">" + text + b"</p>" 
+                webpage = webpage[0:index] + s + webpage[index::]
+
 
     # get data if not cached
     else:
@@ -144,7 +155,6 @@ def retrieve_webpage(host, path, request):
             index = webpage.find(b"<body>") + 7
             text = "FRESH VERSION AT: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
             text = text.encode("utf-8")
-            print(type(text))
             s = b"<p style=\"z-index:9999; position:fixed; top:20px; left:20px; width:200px; height:100px; background-color:yellow; padding:10px; font-weight:bold;\">" + text + b"</p>" 
             webpage = webpage[0:index] + s + webpage[index::]
 
