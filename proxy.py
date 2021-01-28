@@ -1,10 +1,12 @@
 import sys, os, time, socket, select
 
 
-def add_cache_box(webpage):
+def add_cache_box(webpage, state):
     """
     Adds a notification box in html recieved from the webpage indicating
     if the webpage is fresh or cached.
+    webpage: the HTML header/code to modify
+    state: either fresh or cached
     """
     index = webpage.find("<body>")
 
@@ -110,23 +112,38 @@ def retrieve_webpage(host, path, request):
             os.remove(filepath)
 
             webpage = contact_webserver(host, request)
+            print("FUNCTION OUTPUT")
+            print (get_header_val(b"Accept:", webpage))
+            if (get_header_val(b"Accept:", webpage) == b"text/html"):
+                print("WE GOT AN HTML FILE IN DA HOUSEEEEEEE\n")
+            
+            #index = webpage.find("<body>")
+
+
+
             # saves webpage data in a file
             f = open(filepath, 'wb')
             f.write(webpage)
+            f.close()
 
         else:
             f = open(filepath, 'rb')
             webpage = f.read()
             print("got from cache")
+            f.close()
 
     # get data if not cached
     else:
         # gets data from host server
         webpage = contact_webserver(host, request)
+        print("FUNCTION OUTPUT")
+        print (get_header_val(b"Accept", webpage))
 
         # saves webpage data in a file
         f = open(filepath, 'wb')
         f.write(webpage)
+
+
     return webpage
 
 
