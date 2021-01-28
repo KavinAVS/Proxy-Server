@@ -201,7 +201,7 @@ if __name__ == "__main__":
 
         while inputs:
             readable, writable, exceptional = select.select(inputs, outputs,
-                                                            inputs)
+                                                            inputs, 10)
 
             for s in readable:
                 if s is server_sock:
@@ -209,7 +209,11 @@ if __name__ == "__main__":
                     connection.setblocking(0)
                     inputs.append(connection)
                 else:
-                    handle_request(s)
+                    if s.recv(1024, socket.MSG_PEEK) == b'':
+                        s.close()
+                        inputs.remove(s)
+                    else:
+                        handle_request(s)
 
     except socket.error as e:
         print(e)
