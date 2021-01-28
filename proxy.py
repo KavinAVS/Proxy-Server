@@ -38,15 +38,22 @@ def contact_webserver(webaddress, request, client_socket):
     sock = None
     try:
         # check if client already has a connection
-        if client_socket in socket_pairs.keys():
+        if client_socket in socket_pairs.keys() and \
+                webaddress == socket_pairs[client_socket]["host"]:
             # print("used old socket for web server")
-            sock = socket_pairs[client_socket]
+            print("using old socket")
+            sock = socket_pairs[client_socket]["sock"]
         else:
             # print("made new socket to connect to webserver")
+            if client_socket in socket_pairs.keys() and \
+                    webaddress != socket_pairs[client_socket]["host"]:
+                print("closing old web server socket")
+                socket_pairs[client_socket]["sock"].close()
+            print("creating new webserver socket")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             address = (webaddress, 80)
             sock.connect(address)
-            socket_pairs[client_socket] = sock
+            socket_pairs[client_socket] = {"sock": sock, "host": webaddress}
 
         sock.sendall(request)
 
@@ -86,21 +93,34 @@ def contact_webserver(webaddress, request, client_socket):
     return webpage
 
 
-def modify_header(request):
+def modify_header(request, sock):
 
     # get web address
     temp = request.split(b" ", 2)
     address_parts = temp[1].split(b"/", 2)
-    host = address_parts[1]  # since address starts with / [1] is the domain
 
     # change GET path
     path = b""
-    if len(address_parts) < 3:
-        path = b" / "
-        # if the address is "/www.example.com" then this only has 2 parts
+    if address_parts[1].count(b'.') > 1:  # handle relative paths
+        host = address_parts[1]  # since address starts with / [1] is the domain
+        if len(address_parts) < 3 or address_parts[2] == '':
+            path = b" / "
+            # if the address is "/www.example.com" then this only has 2 parts
+        else:
+            path = b" /" + address_parts[2] + b" "
+        request = temp[0] + path + temp[2]
     else:
-        path = b" /" + address_parts[2] + b" "
-    request = temp[0] + path + temp[2]
+        host = socket_pairs[sock]["host"]
+
+    # host = address_parts[1]  # since address starts with / [1] is the domain
+    # # change GET path
+    # path = b""
+    # if len(address_parts) < 3:
+    #     path = b" / "
+    #     # if the address is "/www.example.com" then this only has 2 parts
+    # else:
+    #     path = b" /" + address_parts[2] + b" "
+    # request = temp[0] + path + temp[2]
 
     # change HOST header with domain address
     start_index = request.find(b"Host:")
@@ -117,7 +137,7 @@ def modify_header(request):
     return request, host, path
 
 
-def retrieve_webpage(host, path, request, socket):
+def retrieve_webpage(host, path, request, sock):
     """
     Grabs web page from cache or retrieves from web server if not cached
 
@@ -147,8 +167,7 @@ def retrieve_webpage(host, path, request, socket):
         if curr_age > allowed_age:
             # print(b"Updating old cache files for " + host + path.strip())
             os.remove(filepath)
-
-            webpage = contact_webserver(host, request, socket)
+            webpage = contact_webserver(host, request, sock)
             # saves webpage data in a file
             f = open(filepath, 'wb')
             f.write(webpage)
@@ -161,7 +180,7 @@ def retrieve_webpage(host, path, request, socket):
     # get data if not cached
     else:
         # gets data from host server
-        webpage = contact_webserver(host, request, socket)
+        webpage = contact_webserver(host, request, sock)
 
         # saves webpage data in a file
         f = open(filepath, 'wb')
@@ -192,10 +211,13 @@ def handle_request(sock):
     if request == b'':
         return
 
-    request, host, path = modify_header(request)
-
+    request, host, path = modify_header(request, sock)
+    print(request)
+    #print(socket_pairs)
     # get webpage and send it to client
-    webpage = retrieve_webpage(host, path, request, socket)
+    print(host)
+    webpage = retrieve_webpage(host, path, request, sock)
+    #print(webpage)
     sock.sendall(webpage)
 
 
@@ -203,7 +225,6 @@ socket_pairs = {}
 
 if __name__ == "__main__":
     # creates socket
-    request_time = {}
     inputs = []
     try:
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -217,32 +238,32 @@ if __name__ == "__main__":
 
         while inputs:
             readable, writable, exceptional = select.select(inputs, outputs,
-                                                            inputs)
+                                                            inputs, 5)
 
             for s in readable:
                 if s is server_sock:
                     connection, client_address = s.accept()
                     connection.setblocking(0)
                     inputs.append(connection)
-                    request_time[connection] = time.time()
                 else:
-                    handle_request(s)
+                    if s.recv(1024, socket.MSG_PEEK) == b'':
+                        if s in socket_pairs.keys():
+                            socket_pairs[s]["sock"].close()
+                            socket_pairs.pop(s, None)
+                        inputs.remove(s)
+                        s.close()
+                    else:
+                        handle_request(s)
 
-            socket_list = []
-            for s in request_time.keys():
-                # check all clients for inactive or errored out sockets
-                if ((time.time() - request_time[s]) > 10) or (s in exceptional):
-                    # can't pop from dictionary during loop
-                    socket_list.append(s)
-
-            for s in socket_list:
-                # close connection and remove them form lists
-                if s in socket_pairs.keys():
-                    socket_pairs[s].close()
-                    socket_pairs.pop(s, None)
-                s.close()
-                request_time.pop(s, None)
-                inputs.remove(s)
+            # socket_list = []
+            # for s in socket_pairs.keys():
+            #     if socket_pairs[s][].recv(1024, socket.MSG_PEEK) == b'':
+            #         socket_list.append(s)
+            #
+            # for s in socket_list:
+            #     print("closed")
+            #     socket_pairs[s].close()
+            #     socket_pairs.pop(s, None)
 
     except socket.error as e:
         print(e)
