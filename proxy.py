@@ -113,7 +113,7 @@ def retrieve_webpage(host, path, request):
 
             webpage = contact_webserver(host, request)
             print("FUNCTION OUTPUT")
-            print (get_header_val(b"Accept:", webpage))
+            print (get_header_val(b"Content-Type", webpage))
             if (get_header_val(b"Accept:", webpage) == b"text/html"):
                 print("WE GOT AN HTML FILE IN DA HOUSEEEEEEE\n")
             
@@ -136,8 +136,19 @@ def retrieve_webpage(host, path, request):
     else:
         # gets data from host server
         webpage = contact_webserver(host, request)
-        print("FUNCTION OUTPUT")
-        print (get_header_val(b"Accept", webpage))
+        content_type = get_header_val(b"Content-Type", webpage)
+
+        #Modify html file
+        print(content_type)
+        if (content_type != -1 and content_type.find(b"text/html") != -1):
+            index = webpage.find(b"<body>") + 7
+            text = "FRESH VERSION AT: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+            text = text.encode("utf-8")
+            print(type(text))
+            s = b"<p style=\"z-index:9999; position:fixed; top:20px; left:20px; width:200px; height:100px; background-color:yellow; padding:10px; font-weight:bold;\">" + text + b"</p>" 
+            webpage = webpage[0:index] + s + webpage[index::]
+
+
 
         # saves webpage data in a file
         f = open(filepath, 'wb')
