@@ -24,19 +24,30 @@ def get_header_val(name, header):
     return num[0].strip()
 
 
-def contact_webserver(webaddress, request):
+def contact_webserver(webaddress, request, client_socket):
     """
     Creates a client to request data from given web address using the
     request header
+    :param client_socket: socket of the client connection
+                           (used index into socket_pair dictionary)
     :param webaddress: The address of the web server
     :param request: The request header to send to the web server
     :return: the webpage/file sent by the web server
     """
     webpage = b""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock = None
     try:
-        address = (webaddress, 80)
-        sock.connect(address)
+        # check if client already has a connection
+        if client_socket in socket_pairs.keys():
+            # print("used old socket for web server")
+            sock = socket_pairs[client_socket]
+        else:
+            # print("made new socket to connect to webserver")
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            address = (webaddress, 80)
+            sock.connect(address)
+            socket_pairs[client_socket] = sock
+
         sock.sendall(request)
 
         data = sock.recv(1024)
@@ -56,7 +67,6 @@ def contact_webserver(webaddress, request):
         else:  # handle other transfer encoding that have content length on them
             num = get_header_val(b"Content-Length", data)
             if num == -1:
-                sock.close()
                 return data
 
             content_len = int(num)
@@ -71,87 +81,12 @@ def contact_webserver(webaddress, request):
     except socket.error:
         print("Unable to connect to web server")
         sock.close()
-
-    else:
-        sock.close()
+        socket_pairs.pop(client_socket)
 
     return webpage
 
 
-def retrieve_webpage(host, path, request):
-    """
-    Grabs web page from cache or retrieves from web server if not cached
-
-    :param host: domain address of host
-    :param path: path to requesting file
-    :param request: request header from client
-    :return: webpage from the web server or cache
-    """
-    # gets URL for saving cache files and replaces backslashes with space
-    folder_name = "cache"
-    if not os.path.exists(folder_name):
-        os.mkdir(folder_name)
-
-    filename = host + b"$" + path.replace(b"/", b" ").strip()
-    filename = filename.decode("utf-8")
-
-    filepath = folder_name + "/" + filename
-
-    # try to open cached file
-    if os.path.exists(filepath):
-        # compares the files age with the maximum allowed cache age
-        m_seconds = os.path.getmtime(".\\" + filepath)
-        curr_age = time.time() - m_seconds
-        allowed_age = int(sys.argv[1])
-
-        # removes expired caches
-        if curr_age > allowed_age:
-            print("Updating cache files")
-            os.remove(filepath)
-
-            webpage = contact_webserver(host, request)
-            # saves webpage data in a file
-            f = open(filepath, 'wb')
-            f.write(webpage)
-
-        else:
-            f = open(filepath, 'rb')
-            webpage = f.read()
-            print("got from cache")
-
-    # get data if not cached
-    else:
-        # gets data from host server
-        webpage = contact_webserver(host, request)
-
-        # saves webpage data in a file
-        f = open(filepath, 'wb')
-        f.write(webpage)
-    return webpage
-
-
-def handle_request(sock):
-    """
-    Receives request header from client then
-    receives webpage and send it back to client
-
-    :param sock: socket to requesting client
-    :return: None
-    """
-    request = b""
-    while True:
-        data = sock.recv(1024)
-        print('{!r}'.format(data))
-        if data:
-            request += data
-            if request[-4::] == b"\r\n\r\n":
-                break
-        else:
-            # print('no data from', client_address)
-            break
-
-    if request == b'':
-        return
+def modify_header(request):
 
     # get web address
     temp = request.split(b" ", 2)
@@ -179,15 +114,96 @@ def handle_request(sock):
         request = request[:start_index] + b"Accept-Encoding: " + b"identity\r\n"\
                   + request[start_index:].split(b"\r\n", 1)[1]
 
+    return request, host, path
+
+
+def retrieve_webpage(host, path, request, socket):
+    """
+    Grabs web page from cache or retrieves from web server if not cached
+
+    :param host: domain address of host
+    :param path: path to requesting file
+    :param request: request header from client
+    :return: webpage from the web server or cache
+    """
+    # gets URL for saving cache files and replaces backslashes with space
+    folder_name = "cache"
+    if not os.path.exists(folder_name):
+        os.mkdir(folder_name)
+
+    filename = host + b"$" + path.replace(b"/", b" ").strip()
+    filename = filename.decode("utf-8")
+
+    filepath = folder_name + "/" + filename
+
+    # try to open cached file
+    if os.path.exists(filepath):
+        # compares the files age with the maximum allowed cache age
+        m_seconds = os.path.getmtime(".\\" + filepath)
+        curr_age = time.time() - m_seconds
+        allowed_age = int(sys.argv[1])
+
+        # removes expired caches
+        if curr_age > allowed_age:
+            # print(b"Updating old cache files for " + host + path.strip())
+            os.remove(filepath)
+
+            webpage = contact_webserver(host, request, socket)
+            # saves webpage data in a file
+            f = open(filepath, 'wb')
+            f.write(webpage)
+
+        else:
+            f = open(filepath, 'rb')
+            webpage = f.read()
+            # print(b"got " + host + path.strip() + b" from cache")
+
+    # get data if not cached
+    else:
+        # gets data from host server
+        webpage = contact_webserver(host, request, socket)
+
+        # saves webpage data in a file
+        f = open(filepath, 'wb')
+        f.write(webpage)
+    return webpage
+
+
+def handle_request(sock):
+    """
+    Receives request header from client then
+    receives webpage and send it back to client
+
+    :param sock: socket to requesting client
+    :return: None
+    """
+    request = b""
+    while True:
+        data = sock.recv(1024)
+        # print('{!r}'.format(data))
+        if data:
+            request += data
+            if request[-4::] == b"\r\n\r\n":
+                break
+        else:
+            # print('no data from', client_address)
+            break
+
+    if request == b'':
+        return
+
+    request, host, path = modify_header(request)
+
     # get webpage and send it to client
-    webpage = retrieve_webpage(host, path, request)
-    print("WEBPAGE:")
-    print(webpage)
+    webpage = retrieve_webpage(host, path, request, socket)
     sock.sendall(webpage)
 
 
+socket_pairs = {}
+
 if __name__ == "__main__":
     # creates socket
+    request_time = {}
     inputs = []
     try:
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -208,9 +224,26 @@ if __name__ == "__main__":
                     connection, client_address = s.accept()
                     connection.setblocking(0)
                     inputs.append(connection)
+                    request_time[connection] = time.time()
                 else:
 
                     handle_request(s)
+
+            socket_list = []
+            for s in request_time.keys():
+                # check all clients for inactive or errored out sockets
+                if ((time.time() - request_time[s]) > 10) or (s in exceptional):
+                    # can't pop from dictionary during loop
+                    socket_list.append(s)
+
+            for s in socket_list:
+                # close connection and remove them form lists
+                if s in socket_pairs.keys():
+                    socket_pairs[s].close()
+                    socket_pairs.pop(s, None)
+                s.close()
+                request_time.pop(s, None)
+                inputs.remove(s)
 
     except socket.error as e:
         print(e)
