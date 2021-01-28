@@ -209,6 +209,7 @@ if __name__ == "__main__":
                     connection.setblocking(0)
                     inputs.append(connection)
                 else:
+
                     handle_request(s)
 
     except socket.error as e:
