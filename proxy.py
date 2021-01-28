@@ -1,16 +1,6 @@
 import sys, os, time, socket, select
 
 
-def add_cache_box(webpage, state):
-    """
-    Adds a notification box in html recieved from the webpage indicating
-    if the webpage is fresh or cached.
-    webpage: the HTML header/code to modify
-    state: either fresh or cached
-    """
-    index = webpage.find("<body>")
-
-
 def get_header_val(name, header):
     """
     parses HTML headers for the value of given header name
@@ -98,7 +88,7 @@ def retrieve_webpage(host, path, request):
     filename = filename.decode("utf-8")
 
     filepath = folder_name + "/" + filename
-
+    text = ""
     # try to open cached file
     if os.path.exists(filepath):
         # compares the files age with the maximum allowed cache age
@@ -116,54 +106,42 @@ def retrieve_webpage(host, path, request):
             f.write(webpage)
             f.close()
 
-
-            content_type = get_header_val(b"Content-Type", webpage)
-
-            #adds cache box stating website is fresh
-            if (content_type != -1 and content_type.find(b"text/html") != -1):
-                index = webpage.find(b"<body>") + 7
-                text = "FRESH VERSION AT: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-                text = text.encode("utf-8")
-                s = b"<p style=\"z-index:9999; position:fixed; top:20px; left:20px; width:200px; height:100px; background-color:yellow; padding:10px; font-weight:bold;\">" + text + b"</p>" 
-                webpage = webpage[0:index] + s + webpage[index::]
-
+            text = "FRESH VERSION AT: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+            text = text.encode("utf-8")
 
         else:
             #get cached website
             f = open(filepath, 'rb')
             webpage = f.read()
             f.close()
-            
-            content_type = get_header_val(b"Content-Type", webpage)
-            if (content_type != -1 and content_type.find(b"text/html") != -1):
-                index = webpage.find(b"<body>") + 7
-                text = "CACHED VERSION AS OF: " + time.strftime('%Y-%m-%d %H:%M:%S', os.path.getmtime(".\\" + filepath))
-                text = text.encode("utf-8")
-                s = b"<p style=\"z-index:9999; position:fixed; top:20px; left:20px; width:200px; height:100px; background-color:yellow; padding:10px; font-weight:bold;\">" + text + b"</p>" 
-                webpage = webpage[0:index] + s + webpage[index::]
+
+            text = "CACHED VERSION AS OF: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(m_seconds))
+            text = text.encode("utf-8")
 
 
     # get data if not cached
     else:
         # gets data from host server
         webpage = contact_webserver(host, request)
-        content_type = get_header_val(b"Content-Type", webpage)
-
-        #Modify html file
-        print(content_type)
-        if (content_type != -1 and content_type.find(b"text/html") != -1):
-            index = webpage.find(b"<body>") + 7
-            text = "FRESH VERSION AT: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-            text = text.encode("utf-8")
-            s = b"<p style=\"z-index:9999; position:fixed; top:20px; left:20px; width:200px; height:100px; background-color:yellow; padding:10px; font-weight:bold;\">" + text + b"</p>" 
-            webpage = webpage[0:index] + s + webpage[index::]
-
-
+        text = "FRESH VERSION AT: " + time.strftime('%Y-%m-%d %H:%M:%S',
+                                                    time.localtime(time.time()))
+        text = text.encode("utf-8")
 
         # saves webpage data in a file
         f = open(filepath, 'wb')
         f.write(webpage)
 
+    content_type = get_header_val(b"Content-Type", webpage)
+    # Modify html file
+    if content_type != -1 and content_type.find(b"text/html") != -1:
+        index = webpage.find(b"<body") + 6
+        index += webpage[index:].find(b">") + 1
+
+        s = b"<p style=\"z-index:9999; position:fixed; top:20px; left:20px;" +\
+            b"width:200px; height:100px; background-color:yellow; padding:10px;"+\
+            b"font-weight:bold;\">" + text + b"</p>"
+
+        webpage = webpage[0:index] + s + webpage[index::]
 
     return webpage
 
@@ -179,13 +157,11 @@ def handle_request(sock):
     request = b""
     while True:
         data = sock.recv(1024)
-        print('{!r}'.format(data))
         if data:
             request += data
             if request[-4::] == b"\r\n\r\n":
                 break
         else:
-            # print('no data from', client_address)
             break
 
     if request == b'':
@@ -219,8 +195,7 @@ def handle_request(sock):
 
     # get webpage and send it to client
     webpage = retrieve_webpage(host, path, request)
-    print("WEBPAGE:")
-    print(webpage)
+
     sock.sendall(webpage)
 
 
