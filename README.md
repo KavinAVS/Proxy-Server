@@ -1,3 +1,3 @@
 # Proxy-Server
 
-A proxy server made using python
+A HTTP proxy server made using python for my networking course.
