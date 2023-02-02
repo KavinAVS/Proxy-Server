@@ -1,2 +1,3 @@
 # Proxy-Server
-CSC358 Assignment 1
+
+A proxy server made using python
